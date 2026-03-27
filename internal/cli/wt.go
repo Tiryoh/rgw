@@ -45,6 +45,14 @@ func newWTListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			if isJSON() {
+				if wts == nil {
+					wts = []worktree.Worktree{}
+				}
+				return printJSON(wts)
+			}
+
 			if len(wts) == 0 {
 				fmt.Println("No worktrees found.")
 				return nil

@@ -9,12 +9,12 @@ import (
 
 // Link represents a symlink from a ROS workspace src/ to a worktree.
 type Link struct {
-	Alias      string
-	LinkPath   string
-	TargetPath string
-	Valid      bool   // target exists
-	Orphaned   bool   // symlink exists but target is gone
-	Branch     string // populated by caller if needed
+	Alias      string `json:"alias"`
+	LinkPath   string `json:"link_path"`
+	TargetPath string `json:"target_path"`
+	Valid      bool   `json:"valid"`
+	Orphaned   bool   `json:"orphaned"`
+	Branch     string `json:"branch,omitempty"`
 }
 
 // Status scans <ws>/src/ for all symlinks and returns their state.

@@ -20,6 +20,11 @@ func newDoctorCmd() *cobra.Command {
 			}
 
 			results := doctor.RunAll(cfg)
+
+			if isJSON() {
+				return printJSON(results)
+			}
+
 			hasErrors := false
 			for _, r := range results {
 				prefix := fmt.Sprintf("[%-4s]", r.Severity)

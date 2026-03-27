@@ -1,6 +1,10 @@
 package alias
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/Tiryoh/rgw/internal/validate"
+)
 
 // Mode represents an alias naming strategy.
 type Mode string
@@ -20,15 +24,20 @@ const separator = "__"
 //	ModeRepo        -> "my_pkg"
 //	ModeOrgRepo     -> "Tiryoh__my_pkg"
 //	ModeHostOrgRepo -> "github.com__Tiryoh__my_pkg"
-func Resolve(host, org, repo string, mode Mode) string {
+func Resolve(host, org, repo string, mode Mode) (string, error) {
+	var result string
 	switch mode {
 	case ModeRepo:
-		return repo
+		result = repo
 	case ModeHostOrgRepo:
-		return host + separator + org + separator + repo
+		result = host + separator + org + separator + repo
 	default: // ModeOrgRepo
-		return org + separator + repo
+		result = org + separator + repo
 	}
+	if err := validate.NoControlChars(result); err != nil {
+		return "", fmt.Errorf("invalid alias %q: %w", result, err)
+	}
+	return result, nil
 }
 
 // Parse validates and returns a Mode from a string.

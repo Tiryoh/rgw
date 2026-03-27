@@ -34,9 +34,14 @@ func (s Severity) String() string {
 
 // CheckResult represents the outcome of a single health check.
 type CheckResult struct {
-	Name     string
-	Severity Severity
-	Message  string
+	Name     string   `json:"name"`
+	Severity Severity `json:"severity"`
+	Message  string   `json:"message"`
+}
+
+// MarshalText implements encoding.TextMarshaler so Severity serializes as a string in JSON.
+func (s Severity) MarshalText() ([]byte, error) {
+	return []byte(s.String()), nil
 }
 
 // RunAll runs all health checks and returns results.

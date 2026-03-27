@@ -62,6 +62,9 @@ func newOpenCmd() *cobra.Command {
 				editor = "code"
 			}
 
+			if isJSON() {
+				return printJSON(actionResult{OK: true, Message: fmt.Sprintf("Opening %s with %s", targetPath, editor)})
+			}
 			fmt.Printf("Opening %s with %s\n", targetPath, editor)
 			c := exec.Command(editor, targetPath)
 			c.Stdin = os.Stdin

@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/Tiryoh/rgw/internal/validate"
 )
 
 type Config struct {
@@ -26,9 +28,9 @@ type ROSConfig struct {
 }
 
 type WorkspaceDef struct {
-	Name      string `toml:"name"`
-	Path      string `toml:"path"`
-	SrcSubdir string `toml:"src_subdir"`
+	Name      string `toml:"name" json:"name"`
+	Path      string `toml:"path" json:"path"`
+	SrcSubdir string `toml:"src_subdir" json:"src_subdir"`
 }
 
 type DefaultsConfig struct {
@@ -66,6 +68,15 @@ func Load() (*Config, error) {
 
 	cfg.applyEnv()
 	cfg.expandPaths()
+
+	// Validate SrcSubdir does not escape workspace path.
+	for _, ws := range cfg.ROS.Workspaces {
+		if ws.SrcSubdir != "" && ws.Path != "" {
+			if _, err := validate.SafePath(ws.Path, ws.SrcSubdir); err != nil {
+				return nil, fmt.Errorf("workspace %q has unsafe src_subdir %q: %w", ws.Name, ws.SrcSubdir, err)
+			}
+		}
+	}
 
 	return cfg, nil
 }

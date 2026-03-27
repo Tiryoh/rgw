@@ -16,7 +16,12 @@ func TestResolve(t *testing.T) {
 		{"gitlab.com", "org", "repo", ModeOrgRepo, "org__repo"},
 	}
 	for _, tt := range tests {
-		got := Resolve(tt.host, tt.org, tt.repo, tt.mode)
+		got, err := Resolve(tt.host, tt.org, tt.repo, tt.mode)
+		if err != nil {
+			t.Errorf("Resolve(%q,%q,%q,%q) unexpected error: %v",
+				tt.host, tt.org, tt.repo, tt.mode, err)
+			continue
+		}
 		if got != tt.want {
 			t.Errorf("Resolve(%q,%q,%q,%q) = %q, want %q",
 				tt.host, tt.org, tt.repo, tt.mode, got, tt.want)

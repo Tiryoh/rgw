@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/Tiryoh/rgw/internal/config"
+	"github.com/Tiryoh/rgw/internal/validate"
 )
 
 // List returns all configured workspaces.
@@ -15,6 +16,12 @@ func List(cfg *config.Config) []config.WorkspaceDef {
 
 // Add appends a new workspace to config and saves.
 func Add(cfg *config.Config, name, path string) error {
+	if err := validate.WorkspaceName(name); err != nil {
+		return fmt.Errorf("invalid workspace name %q: %w", name, err)
+	}
+	if err := validate.NoControlChars(path); err != nil {
+		return fmt.Errorf("invalid workspace path %q: %w", path, err)
+	}
 	for _, ws := range cfg.ROS.Workspaces {
 		if ws.Name == name {
 			return fmt.Errorf("workspace %q already exists", name)

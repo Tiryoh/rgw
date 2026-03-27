@@ -33,11 +33,29 @@ func newWSListCmd() *cobra.Command {
 				return err
 			}
 			wsList := workspace.List(cfg)
+			current, _ := cfg.ResolveWorkspace(flagWS)
+
+			if isJSON() {
+				type wsEntry struct {
+					Name   string `json:"name"`
+					Path   string `json:"path"`
+					Active bool   `json:"active"`
+				}
+				entries := make([]wsEntry, 0, len(wsList))
+				for _, ws := range wsList {
+					entries = append(entries, wsEntry{
+						Name:   ws.Name,
+						Path:   ws.Path,
+						Active: current != nil && ws.Name == current.Name,
+					})
+				}
+				return printJSON(entries)
+			}
+
 			if len(wsList) == 0 {
 				fmt.Println("No workspaces configured. Use 'rgw ws add' to add one.")
 				return nil
 			}
-			current, _ := cfg.ResolveWorkspace(flagWS)
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, "NAME\tPATH\tACTIVE")
 			for _, ws := range wsList {
@@ -62,11 +80,13 @@ func newWSAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if flagDryRun {
+				return printAction(fmt.Sprintf("[dry-run] Would add workspace %q at %s", name, path))
+			}
 			if err := workspace.Add(cfg, name, path); err != nil {
 				return err
 			}
-			fmt.Printf("Added workspace %q at %s\n", name, path)
-			return nil
+			return printAction(fmt.Sprintf("Added workspace %q at %s", name, path))
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "workspace name (required)")
@@ -87,11 +107,13 @@ func newWSUseCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if flagDryRun {
+				return printAction(fmt.Sprintf("[dry-run] Would set default workspace to %q", args[0]))
+			}
 			if err := workspace.Use(cfg, args[0]); err != nil {
 				return err
 			}
-			fmt.Printf("Default workspace set to %q\n", args[0])
-			return nil
+			return printAction(fmt.Sprintf("Default workspace set to %q", args[0]))
 		},
 	}
 }
@@ -108,6 +130,9 @@ func newWSCurrentCmd() *cobra.Command {
 			ws, err := workspace.Current(cfg, flagWS)
 			if err != nil {
 				return err
+			}
+			if isJSON() {
+				return printJSON(ws)
 			}
 			fmt.Printf("%s (%s)\n", ws.Name, ws.Path)
 			return nil

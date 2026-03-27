@@ -109,14 +109,20 @@ func newLinkSetCmd() *cobra.Command {
 				targetPath = wts[0].Path
 			}
 
-			aliasName := alias.Resolve(info.Host, info.Org, info.Repo, aliasMode)
+			aliasName, err := alias.Resolve(info.Host, info.Org, info.Repo, aliasMode)
+			if err != nil {
+				return err
+			}
+
+			if flagDryRun {
+				return printAction(fmt.Sprintf("[dry-run] Would link %s -> %s", aliasName, targetPath))
+			}
 
 			if err := symlink.Set(wsDef, aliasName, targetPath); err != nil {
 				return err
 			}
 
-			fmt.Printf("Linked %s -> %s\n", aliasName, targetPath)
-			return nil
+			return printAction(fmt.Sprintf("Linked %s -> %s", aliasName, targetPath))
 		},
 	}
 	cmd.Flags().StringVar(&pathFlag, "path", "", "worktree path to link directly")
@@ -145,6 +151,40 @@ func newLinkStatusCmd() *cobra.Command {
 					return err
 				}
 				workspaces = []config.WorkspaceDef{*wsDef}
+			}
+
+			if isJSON() {
+				if allWS {
+					type wsLinks struct {
+						Workspace string        `json:"workspace"`
+						Path      string        `json:"path"`
+						Links     []symlink.Link `json:"links"`
+					}
+					result := make([]wsLinks, 0, len(workspaces))
+					for _, ws := range workspaces {
+						links, err := symlink.Status(&ws)
+						if err != nil {
+							continue
+						}
+						if links == nil {
+							links = []symlink.Link{}
+						}
+						result = append(result, wsLinks{
+							Workspace: ws.Name,
+							Path:      ws.Path,
+							Links:     links,
+						})
+					}
+					return printJSON(result)
+				}
+				links, err := symlink.Status(&workspaces[0])
+				if err != nil {
+					return err
+				}
+				if links == nil {
+					links = []symlink.Link{}
+				}
+				return printJSON(links)
 			}
 
 			for _, ws := range workspaces {
@@ -208,13 +248,19 @@ func newLinkUnsetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			aliasName := alias.Resolve(info.Host, info.Org, info.Repo, aliasMode)
+			aliasName, err := alias.Resolve(info.Host, info.Org, info.Repo, aliasMode)
+			if err != nil {
+				return err
+			}
+
+			if flagDryRun {
+				return printAction(fmt.Sprintf("[dry-run] Would unlink %s", aliasName))
+			}
 
 			if err := symlink.Unset(wsDef, aliasName); err != nil {
 				return err
 			}
-			fmt.Printf("Unlinked %s\n", aliasName)
-			return nil
+			return printAction(fmt.Sprintf("Unlinked %s", aliasName))
 		},
 	}
 }
@@ -233,16 +279,31 @@ func newLinkRepairCmd() *cobra.Command {
 				return err
 			}
 
+			if flagDryRun {
+				links, err := symlink.Status(wsDef)
+				if err != nil {
+					return err
+				}
+				broken := 0
+				for _, l := range links {
+					if l.Orphaned {
+						broken++
+					}
+				}
+				if broken == 0 {
+					return printAction("[dry-run] No broken symlinks found.")
+				}
+				return printAction(fmt.Sprintf("[dry-run] Would remove %d broken symlink(s).", broken))
+			}
+
 			removed, err := symlink.Repair(wsDef)
 			if err != nil {
 				return err
 			}
 			if removed == 0 {
-				fmt.Println("No broken symlinks found.")
-			} else {
-				fmt.Printf("Removed %d broken symlink(s).\n", removed)
+				return printAction("No broken symlinks found.")
 			}
-			return nil
+			return printAction(fmt.Sprintf("Removed %d broken symlink(s).", removed))
 		},
 	}
 }

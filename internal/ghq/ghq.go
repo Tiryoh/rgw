@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/Tiryoh/rgw/internal/validate"
 )
 
 // RepoInfo represents a repository identified by its ghq-style path components.
@@ -21,6 +23,11 @@ type RepoInfo struct {
 //   - "host/org/repo" — fully qualified
 func ParseRepoArg(ghqRoot string, repoArg string) (*RepoInfo, string, error) {
 	parts := strings.Split(repoArg, "/")
+	for _, p := range parts {
+		if err := validate.RepoSegment(p); err != nil {
+			return nil, "", fmt.Errorf("invalid repository argument %q: %w", repoArg, err)
+		}
+	}
 	switch len(parts) {
 	case 1:
 		// Search for repo name

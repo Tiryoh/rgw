@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/Tiryoh/rgw/internal/config"
+	"github.com/Tiryoh/rgw/internal/validate"
 )
 
 // Set creates or replaces a symlink at <ws>/src/<alias> -> worktreePath.
@@ -20,7 +21,10 @@ func Set(wsDef *config.WorkspaceDef, alias string, worktreePath string) error {
 		return fmt.Errorf("workspace src directory does not exist: %s", srcDir)
 	}
 
-	linkPath := filepath.Join(srcDir, alias)
+	linkPath, err := validate.SafePath(srcDir, alias)
+	if err != nil {
+		return fmt.Errorf("unsafe alias %q: %w", alias, err)
+	}
 
 	// Check existing entry at linkPath
 	linfo, err := os.Lstat(linkPath)
@@ -46,7 +50,11 @@ func Set(wsDef *config.WorkspaceDef, alias string, worktreePath string) error {
 // Unset removes the symlink at <ws>/src/<alias>.
 // Returns error if the path is not a symlink (safety: never remove real directories).
 func Unset(wsDef *config.WorkspaceDef, alias string) error {
-	linkPath := filepath.Join(wsDef.Path, wsDef.SrcSubdir, alias)
+	srcDir := filepath.Join(wsDef.Path, wsDef.SrcSubdir)
+	linkPath, err := validate.SafePath(srcDir, alias)
+	if err != nil {
+		return fmt.Errorf("unsafe alias %q: %w", alias, err)
+	}
 
 	linfo, err := os.Lstat(linkPath)
 	if err != nil {
