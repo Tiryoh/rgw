@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Tiryoh/rgw/internal/config"
+	"github.com/Tiryoh/rgw/internal/ghq"
+	"github.com/Tiryoh/rgw/internal/worktree"
 )
 
 // completeRepoArg provides completion for <repo> arguments by listing
@@ -63,6 +65,40 @@ func completeRepoArg(cmd *cobra.Command, args []string, toComplete string) ([]st
 					completions = append(completions, full)
 				}
 			}
+		}
+	}
+	return completions, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeBranchFlag provides completion for the --branch flag value.
+// It requires the <repo> positional argument to already be specified (args[0]).
+func completeBranchFlag(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) == 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	ghqRoot, err := cfg.ResolveGHQRoot()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	_, repoPath, err := ghq.ParseRepoArg(ghqRoot, args[0])
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	wts, err := worktree.ListForRepo(repoPath)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	var completions []string
+	for _, wt := range wts {
+		if wt.Branch != "" && strings.HasPrefix(wt.Branch, toComplete) {
+			completions = append(completions, wt.Branch)
 		}
 	}
 	return completions, cobra.ShellCompDirectiveNoFileComp

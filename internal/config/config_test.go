@@ -67,8 +67,8 @@ func TestLoadMissingFileUsesDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error: %v", err)
 	}
-	if cfg.Alias.Mode != "org_repo" {
-		t.Errorf("default Alias.Mode = %q, want %q", cfg.Alias.Mode, "org_repo")
+	if cfg.Alias.Mode != "repo" {
+		t.Errorf("default Alias.Mode = %q, want %q", cfg.Alias.Mode, "repo")
 	}
 }
 

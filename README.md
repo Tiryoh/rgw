@@ -30,44 +30,15 @@ make install  # $GOPATH/bin にインストール
 
 ## クイックスタート
 
-### 1. ワークスペースを登録
-
 ```bash
-rgw ws add --name default --path ~/ros2_ws
+rgw ws add --name default --path ~/ros2_ws           # ワークスペース登録
+rgw wt list your-org/robot_nav                        # worktree 確認
+rgw link set your-org/robot_nav --branch feature/x    # リンク作成
+rgw link status                                       # 状態確認
+rgw link set your-org/robot_nav --branch main         # 切替
 ```
 
-### 2. リポジトリの worktree を確認
-
-```bash
-rgw wt list Tiryoh/my_robot
-```
-
-### 3. symlink を作成
-
-```bash
-# ブランチ指定
-rgw link set Tiryoh/my_robot --branch feature/nav
-
-# 対話選択
-rgw link set Tiryoh/my_robot --interactive
-```
-
-### 4. 状態確認
-
-```bash
-rgw link status
-```
-
-```
-ALIAS                  TARGET                                          STATUS
-Tiryoh__my_robot       /home/user/ghq/github.com/Tiryoh/my_robot-nav  ok
-```
-
-### 5. 切り替え
-
-```bash
-rgw link set Tiryoh/my_robot --branch main
-```
+詳しくは後述の[チュートリアル](#チュートリアル)を参照してください。
 
 ## コマンド一覧
 
@@ -135,7 +106,7 @@ path = "~/nav_ws"
 ros_workspace = "default"
 
 [alias]
-mode = "org_repo"
+mode = "repo"
 ```
 
 ### 環境変数
@@ -155,8 +126,8 @@ symlink 名の命名規則を制御します:
 
 | モード | 例 (`github.com/Tiryoh/my_pkg`) |
 |---|---|
-| `repo` | `my_pkg` |
-| `org_repo` (デフォルト) | `Tiryoh__my_pkg` |
+| `repo` (デフォルト) | `my_pkg` |
+| `org_repo` | `Tiryoh__my_pkg` |
 | `host_org_repo` | `github.com__Tiryoh__my_pkg` |
 
 ## シェル補完
@@ -192,27 +163,151 @@ rgw completion fish > ~/.config/fish/completions/rgw.fish
 
 補完はサブコマンド、フラグに加え、`<repo>` 引数 (ghq 管理下のリポジトリ) とワークスペース名も動的に補完します。
 
-## 典型ワークフロー
+## チュートリアル
+
+ghq + gwq (git worktree) + rgw を組み合わせた典型的なワークフローを紹介します。
+
+### 前提: ディレクトリ構成
+
+```
+~/ghq/                                          # ghq root（メインリポジトリ）
+  github.com/
+    your-org/
+      robot_nav/                                # メインブランチのチェックアウト
+      robot_sensors/
+
+~/worktree/                                     # gwq root（worktree 群）
+  github.com/
+    your-org/
+      robot_nav/
+        feature-add-obstacle-detection/         # worktree（ブランチごと）
+        feature-update-costmap/
+        fix-planner-timeout/
+      robot_sensors/
+        feature-lidar-filter/
+
+~/ros2_ws/                                      # ROS ワークスペース
+  src/                                          # ← rgw がここに symlink を管理
+```
+
+### Step 1: ワークスペースを登録する
 
 ```bash
-# 1. worktree を作成 (rgw のスコープ外)
-cd ~/ghq/github.com/Tiryoh/my_robot
-git worktree add ../my_robot-feature feature/nav
+rgw ws add --name ros2 --path ~/ros2_ws
+```
 
-# 2. ROS ws にリンク
-rgw link set Tiryoh/my_robot --branch feature/nav
+### Step 2: worktree を作成する（rgw のスコープ外）
 
-# 3. ビルド
-cd ~/ros2_ws && colcon build
+gwq や `git worktree add` で worktree を作成します。rgw は worktree の作成・削除を行いません。
 
-# 4. 別ブランチに切替
-rgw link set Tiryoh/my_robot --interactive
+```bash
+cd ~/ghq/github.com/your-org/robot_nav
+git worktree add ~/worktree/github.com/your-org/robot_nav/feature-add-obstacle-detection feature/add-obstacle-detection
+```
 
-# 5. 状態確認
+> **注意: worktree の配置場所について**
+>
+> worktree は必ず **ROS ワークスペースの外**に作成してください。リポジトリ内（例: `.claude/` や `.worktrees/`）に worktree を作ると、colcon がパッケージを二重に検出して `Duplicate package names not supported` エラーになります。
+>
+> rgw が symlink 経由でリンクしたリポジトリ内に `package.xml` を含むサブディレクトリがある場合も同様です。問題が発生した場合は、該当ディレクトリに空の `COLCON_IGNORE` ファイルを置くことで colcon の探索対象から除外できます。
+
+### Step 3: 利用可能な worktree を確認する
+
+```bash
+rgw wt list your-org/robot_nav
+```
+
+```
+BRANCH                          HEAD      PATH
+main                            a1b2c3d4  /home/user/ghq/github.com/your-org/robot_nav
+feature/add-obstacle-detection  e5f6g7h8  /home/user/worktree/github.com/your-org/robot_nav/feature-add-obstacle-detection
+feature/update-costmap          i9j0k1l2  /home/user/worktree/github.com/your-org/robot_nav/feature-update-costmap
+fix/planner-timeout             m3n4o5p6  /home/user/worktree/github.com/your-org/robot_nav/fix-planner-timeout
+```
+
+### Step 4: ワークスペースにリンクする
+
+```bash
+# ブランチ名で指定
+rgw link set your-org/robot_nav --branch feature/add-obstacle-detection
+```
+
+```
+Linked robot_nav -> /home/user/worktree/github.com/your-org/robot_nav/feature-add-obstacle-detection
+```
+
+これで `~/ros2_ws/src/robot_nav` が worktree への symlink になります。
+
+### Step 5: 複数パッケージをリンクしてビルドする
+
+```bash
+# センサーパッケージもリンク
+rgw link set your-org/robot_sensors --branch feature/lidar-filter
+
+# リンク状態を確認
 rgw link status
+```
 
-# 6. 環境診断
+```
+ALIAS            TARGET                                                                                  STATUS
+robot_nav        /home/user/worktree/github.com/your-org/robot_nav/feature-add-obstacle-detection        ok
+robot_sensors    /home/user/worktree/github.com/your-org/robot_sensors/feature-lidar-filter              ok
+```
+
+```bash
+# ビルド
+cd ~/ros2_ws && colcon build
+```
+
+### Step 6: ブランチを切り替える
+
+別のブランチに切り替えたいときは、同じ `link set` で上書きします。対話モードで選ぶこともできます。
+
+```bash
+# 対話選択で切替
+rgw link set your-org/robot_nav --interactive
+
+# または直接指定
+rgw link set your-org/robot_nav --branch main
+```
+
+symlink の向き先が変わるだけなので、切替は一瞬です。
+
+### Step 7: 環境を診断する
+
+```bash
 rgw doctor
+```
+
+```
+[OK  ]  ghq_root: ghq root: /home/user/ghq
+[OK  ]  ros2/path: Workspace: /home/user/ros2_ws
+[WARN]  ros2/build: build/ directory exists (stale build artifacts?)
+[OK  ]  ros2/symlinks: No broken symlinks
+```
+
+`build/` が残っている場合は `colcon build` のキャッシュが古いブランチのものかもしれません。必要に応じて `rm -rf build/ install/ log/` してからリビルドしてください。
+
+### Step 8: リンクを解除する
+
+```bash
+rgw link unset your-org/robot_nav
+```
+
+```
+Unlinked robot_nav
+```
+
+## 典型ワークフロー（まとめ）
+
+```bash
+# worktree 作成 → 確認 → リンク → ビルド → 切替 → 診断
+git worktree add ~/worktree/github.com/your-org/robot_nav/feature-x feature/x
+rgw wt list your-org/robot_nav
+rgw link set your-org/robot_nav --branch feature/x
+cd ~/ros2_ws && colcon build
+rgw link set your-org/robot_nav --branch main    # 切替
+rgw doctor                                        # 診断
 ```
 
 ## 設計方針

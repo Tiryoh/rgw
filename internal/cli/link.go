@@ -127,6 +127,7 @@ func newLinkSetCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&pathFlag, "path", "", "worktree path to link directly")
 	cmd.Flags().StringVar(&branchFlag, "branch", "", "select worktree by branch name")
+	cmd.RegisterFlagCompletionFunc("branch", completeBranchFlag)
 	cmd.Flags().BoolVarP(&interactiveFlag, "interactive", "i", false, "interactively select worktree")
 	return cmd
 }

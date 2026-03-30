@@ -158,11 +158,11 @@ func (c *Config) ResolveAliasMode() string {
 	if c.Alias.Mode != "" {
 		return c.Alias.Mode
 	}
-	return "org_repo"
+	return "repo"
 }
 
 func (c *Config) setDefaults() {
-	c.Alias.Mode = "org_repo"
+	c.Alias.Mode = "repo"
 }
 
 func (c *Config) applyEnv() {
