@@ -1,6 +1,7 @@
 package symlink
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -40,6 +41,11 @@ func Status(wsDef *config.WorkspaceDef) ([]Link, error) {
 		if err != nil {
 			continue
 		}
+		// Normalize relative symlink targets to absolute paths.
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(srcDir, target)
+		}
+		target = filepath.Clean(target)
 
 		_, statErr := os.Stat(fullPath)
 		valid := statErr == nil
@@ -54,6 +60,20 @@ func Status(wsDef *config.WorkspaceDef) ([]Link, error) {
 	}
 
 	return links, nil
+}
+
+// FindByAlias returns the Link with the given alias, or an error if not found.
+func FindByAlias(wsDef *config.WorkspaceDef, alias string) (*Link, error) {
+	links, err := Status(wsDef)
+	if err != nil {
+		return nil, err
+	}
+	for i := range links {
+		if links[i].Alias == alias {
+			return &links[i], nil
+		}
+	}
+	return nil, fmt.Errorf("alias %q not found; run 'rgw link status' to see existing links", alias)
 }
 
 // Repair removes broken symlinks in <ws>/src/.

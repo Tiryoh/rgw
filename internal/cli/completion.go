@@ -9,6 +9,7 @@ import (
 
 	"github.com/Tiryoh/rgw/internal/config"
 	"github.com/Tiryoh/rgw/internal/ghq"
+	"github.com/Tiryoh/rgw/internal/symlink"
 	"github.com/Tiryoh/rgw/internal/worktree"
 )
 
@@ -91,6 +92,71 @@ func completeBranchFlag(cmd *cobra.Command, args []string, toComplete string) ([
 	}
 
 	wts, err := worktree.ListForRepo(repoPath)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	var completions []string
+	for _, wt := range wts {
+		if wt.Branch != "" && strings.HasPrefix(wt.Branch, toComplete) {
+			completions = append(completions, wt.Branch)
+		}
+	}
+	return completions, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeAliasArg provides completion for <alias> arguments
+// by listing existing symlink aliases in the current workspace.
+func completeAliasArg(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) > 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	wsDef, err := cfg.ResolveWorkspace(flagWS)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	links, err := symlink.Status(wsDef)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	var completions []string
+	for _, l := range links {
+		if strings.HasPrefix(l.Alias, toComplete) {
+			completions = append(completions, l.Alias)
+		}
+	}
+	return completions, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeSwitchBranchArg provides completion for the branch positional argument on switch.
+// It resolves the alias (args[0]) to its current target and lists worktree branches.
+func completeSwitchBranchArg(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) == 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	wsDef, err := cfg.ResolveWorkspace(flagWS)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	link, err := symlink.FindByAlias(wsDef, args[0])
+	if err != nil || link.Orphaned {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	wts, err := worktree.ListForRepo(link.TargetPath)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
