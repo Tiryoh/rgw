@@ -49,7 +49,7 @@ The `validate` package is the security boundary. All user-supplied paths, repo n
 - Workspace resolution precedence: `--ws` flag > `RGW_WS` env > `RGW_WS_PATH` env > config default > first workspace
 - Repo argument formats: `repo`, `org/repo`, `host/org/repo`
 - ADRs go in `docs/adr/` using the template below
-- Design spec is in Japanese (DESIGN.md); agent-facing docs are in English (CONTEXT.md)
+- Design spec is in Japanese (`DESIGN.md`); agent-facing guidance is in this file, and the legacy `CONTEXT.md` entrypoint redirects to `.claude/skills/rgw-guide/SKILL.md`
 
 ## ADRs
 
