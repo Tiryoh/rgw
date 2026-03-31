@@ -42,8 +42,12 @@
 
 ### 5. Skill Files
 
-- `SKILL.md` / `CONTEXT.md`: YAML frontmatter + structured Markdown
-- Document agent-specific invariants not obvious from `--help`
+- Ship skill files with agent-specific invariants as structured Markdown
+- Document rules not obvious from `--help`
+
+> Note: The original article recommends `CONTEXT.md` and `SKILL.md` as file names.
+> In this project, we dropped `CONTEXT.md` in favor of `AGENTS.md` and `.claude/skills/`
+> to avoid maintaining redundant documentation that agents can query at runtime via `rgw describe`.
 
 ### 6. Multi-Surface Support
 
@@ -62,5 +66,5 @@
 3. Schema / `--describe`
 4. Field masks / `--fields`
 5. `--dry-run`
-6. `CONTEXT.md` / skill files
+6. Skill files / agent documentation
 7. MCP support
