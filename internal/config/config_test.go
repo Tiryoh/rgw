@@ -144,6 +144,47 @@ func TestResolveWorkspaceFromEnv(t *testing.T) {
 	}
 }
 
+func TestSaveRoundtrip(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.toml")
+	t.Setenv("RGW_CONFIG", cfgPath)
+
+	cfg := &Config{}
+	cfg.setDefaults()
+	cfg.ROS.Workspaces = []WorkspaceDef{
+		{Name: "ws1", Path: "/test/ws1", SrcSubdir: "src"},
+	}
+	cfg.GHQ.Root = "/test/ghq"
+
+	if err := cfg.Save(); err != nil {
+		t.Fatalf("Save() error: %v", err)
+	}
+
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load() after Save() error: %v", err)
+	}
+	if len(loaded.ROS.Workspaces) != 1 || loaded.ROS.Workspaces[0].Name != "ws1" {
+		t.Errorf("roundtrip failed: got %+v", loaded.ROS.Workspaces)
+	}
+	if loaded.GHQ.Root != "/test/ghq" {
+		t.Errorf("GHQ.Root = %q, want %q", loaded.GHQ.Root, "/test/ghq")
+	}
+}
+
+func TestSaveErrorsOnEmptyConfigPath(t *testing.T) {
+	t.Setenv("RGW_CONFIG", "")
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("HOME", "")
+
+	cfg := &Config{}
+	cfg.setDefaults()
+	err := cfg.Save()
+	if err == nil {
+		t.Fatal("expected Save() to fail when ConfigPath is empty")
+	}
+}
+
 func TestExpandHome(t *testing.T) {
 	home, _ := os.UserHomeDir()
 	got := expandHome("~/foo")
