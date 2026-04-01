@@ -43,7 +43,8 @@ type SubcmdSummary struct {
 	Description string `json:"description"`
 }
 
-var argPattern = regexp.MustCompile(`<(\w+)>`)
+// argPattern matches both required <arg> and optional [arg] positional arguments.
+var argPattern = regexp.MustCompile(`([<\[])(\w+)[>\]]`)
 
 func newDescribeCmd() *cobra.Command {
 	return &cobra.Command{
@@ -102,13 +103,13 @@ func buildSchema(cmd *cobra.Command) CommandSchema {
 }
 
 func extractArgs(cmd *cobra.Command) []ArgSchema {
-	// Parse <arg> tokens from the Use string.
+	// Parse <arg> (required) and [arg] (optional) tokens from the Use string.
 	matches := argPattern.FindAllStringSubmatch(cmd.Use, -1)
 	args := make([]ArgSchema, 0, len(matches))
 	for _, m := range matches {
 		args = append(args, ArgSchema{
-			Name:     m[1],
-			Required: cmd.Args != nil, // heuristic: if Args validator is set, args are required
+			Name:     m[2],
+			Required: m[1] == "<",
 		})
 	}
 	return args

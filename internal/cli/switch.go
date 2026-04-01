@@ -38,7 +38,7 @@ func newSwitchCmd() *cobra.Command {
 			alias := args[0]
 
 			// Validate alias input at boundary.
-			if err := validate.NoControlChars(alias); err != nil {
+			if err := validate.RepoSegment(alias); err != nil {
 				return fmt.Errorf("invalid alias %q: %w", alias, err)
 			}
 
@@ -66,6 +66,9 @@ func newSwitchCmd() *cobra.Command {
 
 			switch {
 			case pathFlag != "":
+				if err := validate.NoControlChars(pathFlag); err != nil {
+					return fmt.Errorf("invalid --path %q: %w", pathFlag, err)
+				}
 				targetPath = pathFlag
 			case branch != "":
 				if link.Orphaned {

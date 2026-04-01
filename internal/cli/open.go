@@ -62,15 +62,25 @@ func newOpenCmd() *cobra.Command {
 				editor = "code"
 			}
 
-			if isJSON() {
-				return printJSON(actionResult{OK: true, Message: fmt.Sprintf("Opening %s with %s", targetPath, editor)})
+			if flagDryRun {
+				return printAction(fmt.Sprintf("[dry-run] Would open %s with %s", targetPath, editor))
 			}
-			fmt.Printf("Opening %s with %s\n", targetPath, editor)
+
 			c := exec.Command(editor, targetPath)
 			c.Stdin = os.Stdin
 			c.Stdout = os.Stdout
 			c.Stderr = os.Stderr
-			return c.Run()
+			if err := c.Run(); err != nil {
+				if isJSON() {
+					return printJSON(actionResult{OK: false, Message: fmt.Sprintf("editor %s failed: %v", editor, err)})
+				}
+				return err
+			}
+			if isJSON() {
+				return printJSON(actionResult{OK: true, Message: fmt.Sprintf("Opened %s with %s", targetPath, editor)})
+			}
+			fmt.Printf("Opened %s with %s\n", targetPath, editor)
+			return nil
 		},
 	}
 	cmd.Flags().StringVar(&pathFlag, "path", "", "worktree path to open directly")

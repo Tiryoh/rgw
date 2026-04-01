@@ -12,6 +12,7 @@ import (
 	"github.com/Tiryoh/rgw/internal/ghq"
 	"github.com/Tiryoh/rgw/internal/selector"
 	"github.com/Tiryoh/rgw/internal/symlink"
+	"github.com/Tiryoh/rgw/internal/validate"
 	"github.com/Tiryoh/rgw/internal/worktree"
 )
 
@@ -66,6 +67,9 @@ func newLinkSetCmd() *cobra.Command {
 
 			switch {
 			case pathFlag != "":
+				if err := validate.NoControlChars(pathFlag); err != nil {
+					return fmt.Errorf("invalid --path %q: %w", pathFlag, err)
+				}
 				targetPath = pathFlag
 			case branchFlag != "":
 				wts, err := worktree.ListForRepo(repoPath)
@@ -160,21 +164,24 @@ func newLinkStatusCmd() *cobra.Command {
 						Workspace string        `json:"workspace"`
 						Path      string        `json:"path"`
 						Links     []symlink.Link `json:"links"`
+						Error     string        `json:"error,omitempty"`
 					}
 					result := make([]wsLinks, 0, len(workspaces))
 					for _, ws := range workspaces {
-						links, err := symlink.Status(&ws)
-						if err != nil {
-							continue
-						}
-						if links == nil {
-							links = []symlink.Link{}
-						}
-						result = append(result, wsLinks{
+						entry := wsLinks{
 							Workspace: ws.Name,
 							Path:      ws.Path,
-							Links:     links,
-						})
+						}
+						links, err := symlink.Status(&ws)
+						if err != nil {
+							entry.Error = err.Error()
+						} else {
+							if links == nil {
+								links = []symlink.Link{}
+							}
+							entry.Links = links
+						}
+						result = append(result, entry)
 					}
 					return printJSON(result)
 				}

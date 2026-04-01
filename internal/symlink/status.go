@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Tiryoh/rgw/internal/config"
 )
@@ -82,13 +83,31 @@ func Repair(wsDef *config.WorkspaceDef) (removed int, err error) {
 	if err != nil {
 		return 0, err
 	}
+	var errs []string
 	for _, link := range links {
-		if link.Orphaned {
-			if err := os.Remove(link.LinkPath); err != nil {
-				return removed, err
-			}
-			removed++
+		if !link.Orphaned {
+			continue
 		}
+		// Re-verify the path is still a symlink before removing (TOCTOU guard).
+		linfo, statErr := os.Lstat(link.LinkPath)
+		if statErr != nil {
+			// Already gone — count as success.
+			removed++
+			continue
+		}
+		if linfo.Mode()&os.ModeSymlink == 0 {
+			errs = append(errs, fmt.Sprintf("%s is no longer a symlink", link.LinkPath))
+			continue
+		}
+		if removeErr := os.Remove(link.LinkPath); removeErr != nil {
+			errs = append(errs, removeErr.Error())
+			continue
+		}
+		removed++
+	}
+	if len(errs) > 0 {
+		return removed, fmt.Errorf("repair: %d error(s): %s",
+			len(errs), strings.Join(errs, "; "))
 	}
 	return removed, nil
 }

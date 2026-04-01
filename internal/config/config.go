@@ -48,7 +48,10 @@ func ConfigPath() string {
 	}
 	configDir := os.Getenv("XDG_CONFIG_HOME")
 	if configDir == "" {
-		home, _ := os.UserHomeDir()
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return ""
+		}
 		configDir = filepath.Join(home, ".config")
 	}
 	return filepath.Join(configDir, "rgw", "config.toml")
@@ -81,18 +84,36 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// Save persists the config to the TOML file.
+// Save persists the config to the TOML file atomically via temp file + rename.
 func (c *Config) Save() error {
 	path := ConfigPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
-	f, err := os.Create(path)
+	tmp, err := os.CreateTemp(dir, "rgw-config-*.toml")
 	if err != nil {
-		return fmt.Errorf("failed to write config: %w", err)
+		return fmt.Errorf("failed to create temp config file: %w", err)
 	}
-	defer f.Close()
-	return toml.NewEncoder(f).Encode(c)
+	tmpName := tmp.Name()
+	ok := false
+	defer func() {
+		_ = tmp.Close()
+		if !ok {
+			_ = os.Remove(tmpName)
+		}
+	}()
+	if err := toml.NewEncoder(tmp).Encode(c); err != nil {
+		return fmt.Errorf("failed to encode config: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("failed to flush config: %w", err)
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+	ok = true
+	return nil
 }
 
 // ResolveWorkspace returns the active workspace definition.
@@ -186,7 +207,10 @@ func (c *Config) expandPaths() {
 
 func expandHome(path string) string {
 	if strings.HasPrefix(path, "~/") {
-		home, _ := os.UserHomeDir()
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return path
+		}
 		return filepath.Join(home, path[2:])
 	}
 	return path
