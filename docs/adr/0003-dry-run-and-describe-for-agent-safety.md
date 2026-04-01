@@ -21,7 +21,7 @@ AIエージェントがrgwを操作する場合、以下のリスクがある:
 ### --dry-run
 
 - `root.go` にグローバル `--dry-run` boolフラグを登録
-- 対象コマンド: `link set`, `link unset`, `link repair`, `ws add`, `ws use`
+- 対象コマンド: `link set`, `link unset`, `link repair`, `ws add`, `ws use`, `open`
 - dry-run時は実行前にメッセージ出力して `return nil`。バリデーション（パス解決、alias算出等）は実行する
 - `--output json` との組み合わせで `{"ok":true,"message":"[dry-run] Would link ..."}` を出力
 - dry-runガードはコマンドハンドラ内に配置（ライブラリ層には干渉しない）
@@ -30,7 +30,7 @@ AIエージェントがrgwを操作する場合、以下のリスクがある:
 
 - `rgw describe [command...]` で任意のコマンドのメタデータをJSON出力
 - Cobraの `cmd.Commands()`, `cmd.LocalFlags()`, `cmd.InheritedFlags()` から動的に構築
-- 引数は `Use` 文字列の `<arg>` パターンから正規表現で抽出
+- 引数は `Use` 文字列の `<arg>` (必須) および `[arg]` (省略可能) パターンから正規表現で抽出し、括弧の種類で `required` フィールドを決定する
 - 静的なスキーマファイルを別途メンテナンスしない
 
 ## Alternatives Considered

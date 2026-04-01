@@ -29,8 +29,7 @@ cmd/rgw/main.go → internal/cli (Cobra commands)
                      ├── workspace  ← Workspace CRUD (add/use/list/current)
                      ├── validate   ← Security boundary: path traversal, control chars
                      ├── selector   ← Bubbletea interactive worktree picker
-                     ├── doctor     ← Environment health checks
-                     └── output     ← JSON/text output with TTY auto-detection
+                     └── doctor     ← Environment health checks
 ```
 
 ### Key design decisions (documented in docs/adr/)
