@@ -7,6 +7,7 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
+	"github.com/Tiryoh/rgw/internal/cmake"
 	"github.com/Tiryoh/rgw/internal/config"
 	"github.com/Tiryoh/rgw/internal/selector"
 	"github.com/Tiryoh/rgw/internal/symlink"
@@ -142,6 +143,12 @@ func newSwitchCmd() *cobra.Command {
 				return printJSON(actionResult{OK: true, Message: fmt.Sprintf("Switched %s: %s -> %s", alias, link.TargetPath, targetPath)})
 			}
 			fmt.Printf("Switched %s:\n  %s\n  -> %s\n", alias, link.TargetPath, targetPath)
+
+			// Check for stale CMake cache entries that reference the old worktree.
+			stale, err := cmake.CheckStaleCache(wsDef.Path, link.TargetPath)
+			if err == nil && len(stale) > 0 {
+				fmt.Fprint(os.Stderr, cmake.FormatWarning(wsDef.Path, stale))
+			}
 			return nil
 		},
 	}
